@@ -222,7 +222,49 @@
         
         <button id="save-settings" class="primary-btn">Save Settings</button>
         <p id="settings-status" class="status-message"></p>
+        
+        <div class="settings-divider"></div>
+        
+        <div class="setting-group">
+          <label>Debug Logs</label>
+          <button id="view-logs-btn" class="secondary-btn">View Recent Logs</button>
+          <button id="clear-logs-btn" class="text-btn">Clear Logs</button>
+        </div>
       </div>
+    </div>
+    
+    <div id="result-panel" class="result-panel">
+      <div class="detail-header">
+        <button id="close-result" class="icon-btn">←</button>
+        <h3>AI Analysis Result</h3>
+      </div>
+      <div class="result-content">
+        <div class="result-section">
+          <h4>Provider & Model</h4>
+          <div id="result-provider" class="result-value"></div>
+        </div>
+        <div class="result-section">
+          <h4>Classification</h4>
+          <div id="result-classification" class="result-value"></div>
+        </div>
+        <div class="result-section">
+          <h4>Full Response</h4>
+          <pre id="result-json" class="result-json"></pre>
+        </div>
+        <div class="result-section" id="result-error-section" style="display: none;">
+          <h4>Error</h4>
+          <div id="result-error" class="result-error"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="logs-panel" class="logs-panel">
+      <div class="detail-header">
+        <button id="close-logs" class="icon-btn">←</button>
+        <h3>Debug Logs</h3>
+        <button id="copy-logs" class="text-btn">Copy All</button>
+      </div>
+      <div id="logs-content" class="logs-content"></div>
     </div>
 
     <div id="toast" class="toast"></div>

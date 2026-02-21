@@ -6,6 +6,20 @@ const STORE_NAME = 'bookmarks';
 
 let db = null;
 
+async function addLog(log) {
+  try {
+    const result = await chrome.storage.local.get(['intentbook_logs']);
+    const logs = result.intentbook_logs || [];
+    logs.unshift({
+      ...log,
+      timestamp: new Date().toISOString()
+    });
+    await chrome.storage.local.set({ intentbook_logs: logs.slice(0, 100) });
+  } catch (e) {
+    console.error('[IntentBook] Failed to save log:', e);
+  }
+}
+
 async function initDB() {
   return new Promise((resolve, reject) => {
     if (db) {
@@ -598,6 +612,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             
             const existingBookmark = await getBookmarkByUrl(saveUrl);
             if (existingBookmark) {
+              await addLog({
+                action: 'SAVE_PAGE',
+                type: 'warning',
+                url: saveUrl,
+                error: 'Already saved'
+              });
               sendResponse({ success: false, error: 'Already saved', bookmark: existingBookmark });
               return;
             }
@@ -667,7 +687,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 content = results[0].result;
               }
             } catch (scriptError) {
-              console.warn('Could not extract content:', scriptError);
+              console.warn('[IntentBook] Could not extract content:', scriptError);
+              await addLog({
+                action: 'EXTRACT_CONTENT',
+                type: 'warning',
+                url: saveUrl,
+                error: scriptError.message
+              });
             }
             
             content = truncateText(content, 7000);
@@ -676,23 +702,60 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               content = saveTitle;
             }
             
+            console.log('[IntentBook] Starting AI analysis for:', saveUrl);
+            
             const aiResult = await analyzePageWithFallback(saveTitle, saveUrl, content);
+            
+            console.log('[IntentBook] AI result:', {
+              source: aiResult._source,
+              intent: aiResult.primary_intent,
+              error: aiResult._errorMessage
+            });
             
             const newBookmark = {
               url: saveUrl,
               title: saveTitle,
-              ...aiResult
+              primary_intent: aiResult.primary_intent,
+              page_type: aiResult.page_type,
+              topics: aiResult.topics,
+              summary: aiResult.summary,
+              key_takeaways: aiResult.key_takeaways,
+              confidence: aiResult.confidence
             };
             
             const savedBookmark = await addBookmark(newBookmark);
+            
+            await addLog({
+              action: 'SAVE_PAGE',
+              type: aiResult._errorMessage ? 'warning' : 'success',
+              provider: aiResult._source,
+              url: saveUrl,
+              result: aiResult.primary_intent,
+              error: aiResult._errorMessage,
+              response: {
+                primary_intent: aiResult.primary_intent,
+                page_type: aiResult.page_type,
+                topics: aiResult.topics,
+                summary: aiResult.summary?.substring(0, 100),
+                confidence: aiResult.confidence
+              }
+            });
+            
             sendResponse({ 
               success: true, 
               bookmark: savedBookmark,
               aiSource: aiResult._source,
-              aiError: aiResult._errorMessage
+              aiError: aiResult._errorMessage,
+              aiResponse: aiResult
             });
           } catch (saveError) {
-            console.error('Save page error:', saveError);
+            console.error('[IntentBook] Save page error:', saveError);
+            await addLog({
+              action: 'SAVE_PAGE',
+              type: 'error',
+              url: message.url,
+              error: saveError.message
+            });
             sendResponse({ success: false, error: saveError.message });
           }
           break;

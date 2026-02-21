@@ -462,16 +462,28 @@ const saveCurrentPage = async () => {
     });
     
     if (response.success) {
-      const source = response.aiSource || 'unknown';
-      const isError = response.aiError;
-      
-      if (isError) {
-        showToast(`Saved (fallback) - ${response.aiError}`, 'error');
-      } else {
-        showToast(`Saved via ${source}: ${getCategoryLabel(response.bookmark.primary_intent)}`, 'success');
-      }
+      await saveLog({
+        action: 'SAVE_PAGE',
+        type: response.aiError ? 'warning' : 'success',
+        provider: response.aiSource,
+        url: tab.url,
+        result: response.bookmark.primary_intent,
+        error: response.aiError,
+        response: {
+          bookmark: response.bookmark,
+          aiSource: response.aiSource,
+          aiError: response.aiError
+        }
+      });
+      showResultPanel(response);
       loadAllBookmarks();
     } else {
+      await saveLog({
+        action: 'SAVE_PAGE',
+        type: 'error',
+        url: tab.url,
+        error: response.error
+      });
       showToast(response.error || 'Failed to save', 'error');
     }
   } catch (error) {
@@ -482,6 +494,121 @@ const saveCurrentPage = async () => {
     saveBtn.innerHTML = originalContent;
     saveBtn.disabled = false;
   }
+};
+
+const showResultPanel = (response) => {
+  const bookmark = response.bookmark;
+  const source = response.aiSource || 'unknown';
+  const isError = response.aiError;
+  
+  const providerNames = {
+    chrome: 'Chrome AI (Gemini Nano)',
+    gemini: 'Google Gemini',
+    openrouter: 'OpenRouter',
+    openai: 'OpenAI',
+    fallback: 'Fallback (no AI)',
+    unknown: 'Unknown'
+  };
+  
+  document.getElementById('result-provider').innerHTML = `
+    <div class="result-row">
+      <span class="result-label">Provider:</span>
+      <span class="result-value">${providerNames[source] || source}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Status:</span>
+      <span class="result-value ${isError ? 'status-error' : 'status-success'}">${isError ? '⚠️ Fallback used' : '✓ Success'}</span>
+    </div>
+  `;
+  
+  document.getElementById('result-classification').innerHTML = `
+    <div class="result-row">
+      <span class="result-label">Intent:</span>
+      <span class="result-value">${getCategoryIcon(bookmark.primary_intent)} ${getCategoryLabel(bookmark.primary_intent)}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Type:</span>
+      <span class="result-value">${bookmark.page_type}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Confidence:</span>
+      <span class="result-value">${Math.round((bookmark.confidence || 0) * 100)}%</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Topics:</span>
+      <span class="result-value">${bookmark.topics?.join(', ') || 'none'}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Summary:</span>
+      <span class="result-value">${bookmark.summary || 'No summary'}</span>
+    </div>
+  `;
+  
+  const cleanBookmark = { ...bookmark };
+  delete cleanBookmark._source;
+  delete cleanBookmark._error;
+  delete cleanBookmark._errorMessage;
+  
+  document.getElementById('result-json').textContent = JSON.stringify({
+    source: source,
+    error: isError || null,
+    result: cleanBookmark
+  }, null, 2);
+  
+  const errorSection = document.getElementById('result-error-section');
+  if (isError) {
+    errorSection.style.display = 'block';
+    document.getElementById('result-error').textContent = response.aiError;
+  } else {
+    errorSection.style.display = 'none';
+  }
+  
+  document.getElementById('result-panel').classList.add('active');
+};
+
+const loadLogs = async () => {
+  const result = await chrome.storage.local.get(['intentbook_logs']);
+  return result.intentbook_logs || [];
+};
+
+const saveLog = async (log) => {
+  const logs = await loadLogs();
+  logs.unshift({
+    ...log,
+    timestamp: new Date().toISOString()
+  });
+  const trimmedLogs = logs.slice(0, 100);
+  await chrome.storage.local.set({ intentbook_logs: trimmedLogs });
+};
+
+const clearLogs = async () => {
+  await chrome.storage.local.set({ intentbook_logs: [] });
+  showToast('Logs cleared', 'success');
+};
+
+const showLogsPanel = async () => {
+  const logs = await loadLogs();
+  const container = document.getElementById('logs-content');
+  
+  if (logs.length === 0) {
+    container.innerHTML = '<div class="logs-empty">No logs yet. Save a page to see logs.</div>';
+  } else {
+    container.innerHTML = logs.map(log => `
+      <div class="log-entry ${log.type || 'info'}">
+        <div class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</div>
+        <div class="log-action">${log.action}</div>
+        <div class="log-details">
+          ${log.provider ? `<div><strong>Provider:</strong> ${log.provider}</div>` : ''}
+          ${log.url ? `<div><strong>URL:</strong> ${log.url.substring(0, 50)}...</div>` : ''}
+          ${log.result ? `<div><strong>Result:</strong> ${log.result}</div>` : ''}
+          ${log.error ? `<div class="log-error"><strong>Error:</strong> ${log.error}</div>` : ''}
+          ${log.response ? `<pre class="log-json">${escapeHtml(JSON.stringify(log.response, null, 2))}</pre>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  document.getElementById('logs-panel').classList.add('active');
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -556,4 +683,26 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   document.getElementById('delete-bookmark').addEventListener('click', deleteBookmark);
+  
+  document.getElementById('close-result').addEventListener('click', () => {
+    document.getElementById('result-panel').classList.remove('active');
+  });
+  
+  document.getElementById('close-logs').addEventListener('click', () => {
+    document.getElementById('logs-panel').classList.remove('active');
+  });
+  
+  document.getElementById('view-logs-btn').addEventListener('click', showLogsPanel);
+  
+  document.getElementById('clear-logs-btn').addEventListener('click', async () => {
+    await clearLogs();
+    document.getElementById('logs-content').innerHTML = '<div class="logs-empty">No logs yet.</div>';
+  });
+  
+  document.getElementById('copy-logs').addEventListener('click', async () => {
+    const logs = await loadLogs();
+    const text = JSON.stringify(logs, null, 2);
+    await navigator.clipboard.writeText(text);
+    showToast('Logs copied!', 'success');
+  });
 });
