@@ -278,23 +278,49 @@ const importData = async (file) => {
   }
 };
 
+const PROVIDERS = {
+  gemini: {
+    name: 'Google Gemini',
+    keyUrl: 'https://aistudio.google.com/app/apikey',
+    info: 'Free tier with generous limits'
+  },
+  openrouter: {
+    name: 'OpenRouter',
+    keyUrl: 'https://openrouter.ai/keys',
+    info: 'Access multiple free AI models'
+  },
+  openai: {
+    name: 'OpenAI',
+    keyUrl: 'https://platform.openai.com/api-keys',
+    info: 'Paid API with GPT models'
+  }
+};
+
 const loadSettings = async () => {
   const response = await chrome.runtime.sendMessage({ action: 'getApiConfig' });
   
   if (response.success) {
+    const provider = response.config.apiProvider || 'gemini';
+    document.getElementById('api-provider').value = provider;
     document.getElementById('api-key').value = response.config.apiKey;
-    document.getElementById('api-endpoint').value = response.config.apiEndpoint;
-    document.getElementById('api-model').value = response.config.apiModel;
+    document.getElementById('api-model').value = response.config.apiModel || '';
+    updateProviderInfo(provider);
   }
 };
 
+const updateProviderInfo = (provider) => {
+  const info = PROVIDERS[provider];
+  document.getElementById('provider-info').textContent = info.info;
+  document.getElementById('key-info').innerHTML = `Get a key: <a href="${info.keyUrl}" target="_blank">${info.name}</a>`;
+};
+
 const saveSettings = async () => {
+  const apiProvider = document.getElementById('api-provider').value;
   const apiKey = document.getElementById('api-key').value.trim();
-  const apiEndpoint = document.getElementById('api-endpoint').value.trim();
   const apiModel = document.getElementById('api-model').value.trim();
   const status = document.getElementById('settings-status');
   
-  if (!apiKey && !document.getElementById('api-key').placeholder) {
+  if (!apiKey) {
     status.textContent = 'API key is required';
     status.className = 'status-message error';
     return;
@@ -303,8 +329,8 @@ const saveSettings = async () => {
   const response = await chrome.runtime.sendMessage({
     action: 'setApiConfig',
     config: {
-      apiKey: apiKey || undefined,
-      apiEndpoint: apiEndpoint || undefined,
+      apiProvider,
+      apiKey,
       apiModel: apiModel || undefined
     }
   });
@@ -460,6 +486,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   document.getElementById('save-settings').addEventListener('click', saveSettings);
+  
+  document.getElementById('api-provider').addEventListener('change', (e) => {
+    updateProviderInfo(e.target.value);
+  });
   
   document.getElementById('close-detail').addEventListener('click', hideDetail);
   

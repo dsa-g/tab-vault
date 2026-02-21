@@ -4,7 +4,8 @@ A local-first, privacy-respecting Chrome extension that uses AI to automatically
 
 ## Features
 
-- **One-Click Save**: Save any page with a single click on the extension icon
+- **One-Click Save**: Save any page with a single click
+- **Free AI Options**: Works with Google Gemini (free) or OpenRouter (free models)
 - **AI-Powered Classification**: Automatically categorizes pages by intent, type, and topics
 - **Smart Summaries**: Generates concise summaries and key takeaways
 - **Local Storage**: All data stored locally in IndexedDB - no cloud, no tracking
@@ -19,35 +20,16 @@ A local-first, privacy-respecting Chrome extension that uses AI to automatically
 ### Prerequisites
 
 1. Chrome browser (version 88 or higher)
-2. An OpenAI API key (or compatible API endpoint)
+2. A free API key from one of:
+   - **Google Gemini** (Recommended - Free): https://aistudio.google.com/app/apikey
+   - **OpenRouter** (Free models): https://openrouter.ai/keys
+   - **OpenAI** (Paid): https://platform.openai.com/api-keys
 
 ### Step 1: Download/Clone
 
 Download or clone this repository to your local machine.
 
-### Step 2: Generate Icons (Required)
-
-The extension requires PNG icons. You can either:
-
-**Option A: Use the provided SVG files**
-Convert the SVG files in the `icons/` folder to PNG:
-- `icon16.png` (16x16)
-- `icon48.png` (48x48)
-- `icon128.png` (128x128)
-
-**Option B: Create your own icons**
-Create PNG images with the following sizes in the `icons/` folder:
-- `icon16.png`
-- `icon48.png`
-- `icon128.png`
-
-**Option C: Use placeholder icons**
-Run this command in the `intentbook` directory with Node.js installed:
-```bash
-node generate-icons.js
-```
-
-### Step 3: Load the Extension
+### Step 2: Load the Extension
 
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable "Developer mode" (toggle in top right)
@@ -55,14 +37,27 @@ node generate-icons.js
 4. Select the `intentbook` folder
 5. The extension icon should appear in your toolbar
 
-### Step 4: Configure API Key
+### Step 3: Configure API Key
 
 1. Click the extension icon
 2. Click the settings gear icon (⚙️)
-3. Enter your API key
-4. (Optional) Change the API endpoint for custom/compatible APIs
-5. (Optional) Change the model (default: gpt-4o-mini)
-6. Click "Save Settings"
+3. Select your AI provider (Google Gemini is recommended and free)
+4. Enter your API key
+5. Click "Save Settings"
+
+**Getting a Free API Key:**
+
+**Google Gemini (Recommended):**
+1. Go to https://aistudio.google.com/app/apikey
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy the key and paste it in settings
+
+**OpenRouter:**
+1. Go to https://openrouter.ai/keys
+2. Create a free account
+3. Generate an API key
+4. Use free models like `google/gemini-2.0-flash-exp:free`
 
 ## Usage
 
@@ -129,24 +124,23 @@ node generate-icons.js
 
 ## API Configuration
 
-### OpenAI (Default)
+### Google Gemini (Recommended - Free)
 
-```
-Endpoint: https://api.openai.com/v1/chat/completions
-Model: gpt-4o-mini (or gpt-4, gpt-3.5-turbo)
-```
+- Free tier with generous limits (15 RPM, 1M tokens/day)
+- Get your API key: https://aistudio.google.com/app/apikey
+- Default model: `gemini-1.5-flash`
 
-Get your API key from: https://platform.openai.com/api-keys
+### OpenRouter (Free Models)
 
-### Compatible APIs
+- Access to multiple free AI models
+- Get your API key: https://openrouter.ai/keys
+- Free models available: `google/gemini-2.0-flash-exp:free`, `meta-llama/llama-3.1-8b-instruct:free`
 
-The extension works with any OpenAI-compatible API:
-- Azure OpenAI
-- Anthropic Claude (via proxy)
-- Local LLMs (via compatible servers)
-- Custom endpoints
+### OpenAI (Paid)
 
-Just change the endpoint URL in settings.
+- Paid API with GPT models
+- Get your API key: https://platform.openai.com/api-keys
+- Models: `gpt-4o-mini`, `gpt-4`, `gpt-3.5-turbo`
 
 ## Data Storage
 

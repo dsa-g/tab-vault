@@ -192,21 +192,25 @@
       </div>
       <div class="settings-content">
         <div class="setting-group">
+          <label for="api-provider">AI Provider</label>
+          <select id="api-provider">
+            <option value="gemini">Google Gemini (Free)</option>
+            <option value="openrouter">OpenRouter (Free models)</option>
+            <option value="openai">OpenAI (Paid)</option>
+          </select>
+          <small id="provider-info">Free tier with generous limits</small>
+        </div>
+        
+        <div class="setting-group">
           <label for="api-key">API Key</label>
           <input type="password" id="api-key" placeholder="Enter your API key">
-          <small>Your API key is stored locally and never sent to our servers.</small>
+          <small id="key-info">Get a free Gemini key: <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></small>
         </div>
         
         <div class="setting-group">
-          <label for="api-endpoint">API Endpoint</label>
-          <input type="url" id="api-endpoint" placeholder="https://api.openai.com/v1/chat/completions">
-          <small>Default: OpenAI API endpoint. Change for custom/compatible APIs.</small>
-        </div>
-        
-        <div class="setting-group">
-          <label for="api-model">Model</label>
-          <input type="text" id="api-model" placeholder="gpt-4o-mini">
-          <small>The model to use for classification.</small>
+          <label for="api-model">Model (optional)</label>
+          <input type="text" id="api-model" placeholder="Default for selected provider">
+          <small>Leave empty for recommended free model</small>
         </div>
         
         <button id="save-settings" class="primary-btn">Save Settings</button>

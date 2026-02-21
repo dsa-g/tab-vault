@@ -1,9 +1,28 @@
-const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
-const DEFAULT_MODEL = 'gpt-4o-mini';
 const AI_TIMEOUT = 30000;
 const MAX_RETRIES = 2;
 
-const SYSTEM_PROMPT = `You are an intelligent web page classifier and knowledge organizer. Return only valid JSON. Do not include explanations or markdown.`;
+const PROVIDERS = {
+  gemini: {
+    name: 'Google Gemini',
+    defaultEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+    defaultModel: 'gemini-1.5-flash',
+    free: true
+  },
+  openrouter: {
+    name: 'OpenRouter',
+    defaultEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
+    defaultModel: 'google/gemini-2.0-flash-exp:free',
+    free: true
+  },
+  openai: {
+    name: 'OpenAI',
+    defaultEndpoint: 'https://api.openai.com/v1/chat/completions',
+    defaultModel: 'gpt-4o-mini',
+    free: false
+  }
+};
+
+const SYSTEM_PROMPT = `You are an intelligent web page classifier and knowledge organizer. Return only valid JSON. Do not include explanations or markdown code blocks.`;
 
 function buildUserPrompt(title, url, content) {
   return `Analyze the webpage below.
@@ -31,11 +50,15 @@ Return JSON:
 
 async function getApiConfig() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(['apiKey', 'apiEndpoint', 'apiModel'], (result) => {
+    chrome.storage.local.get(['apiKey', 'apiEndpoint', 'apiModel', 'apiProvider'], (result) => {
+      const provider = result.apiProvider || 'gemini';
+      const providerConfig = PROVIDERS[provider];
+      
       resolve({
         apiKey: result.apiKey || '',
-        apiEndpoint: result.apiEndpoint || DEFAULT_ENDPOINT,
-        apiModel: result.apiModel || DEFAULT_MODEL
+        apiEndpoint: result.apiEndpoint || providerConfig.defaultEndpoint,
+        apiModel: result.apiModel || providerConfig.defaultModel,
+        apiProvider: provider
       });
     });
   });
@@ -47,16 +70,7 @@ async function setApiConfig(config) {
   });
 }
 
-function extractJsonFromResponse(text) {
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return jsonMatch[0];
-  }
-  return text;
-}
-
 function validateAiResponse(response) {
-  const required = ['primary_intent', 'page_type', 'topics', 'summary', 'key_takeaways', 'confidence'];
   const validIntents = [
     'learning_guide', 'research_reference', 'buying_decision', 'product_tool',
     'news_update', 'opinion_analysis', 'tutorial_howto', 'career_job',
@@ -67,17 +81,11 @@ function validateAiResponse(response) {
     'academic_paper', 'landing_page', 'ecommerce_listing', 'video_page', 'other'
   ];
   
-  for (const field of required) {
-    if (!(field in response)) {
-      return false;
-    }
-  }
-  
-  if (!validIntents.includes(response.primary_intent)) {
+  if (!response.primary_intent || !validIntents.includes(response.primary_intent)) {
     response.primary_intent = 'other';
   }
   
-  if (!validPageTypes.includes(response.page_type)) {
+  if (!response.page_type || !validPageTypes.includes(response.page_type)) {
     response.page_type = 'other';
   }
   
@@ -96,13 +104,176 @@ function validateAiResponse(response) {
   return true;
 }
 
-async function analyzePage(title, url, content) {
-  const config = await getApiConfig();
+function extractJsonFromResponse(text) {
+  let cleaned = text.trim();
   
-  if (!config.apiKey) {
-    throw new Error('API_KEY_MISSING');
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.slice(7);
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.slice(3);
+  }
+  if (cleaned.endsWith('```')) {
+    cleaned = cleaned.slice(0, -3);
   }
   
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return jsonMatch[0];
+  }
+  return cleaned;
+}
+
+async function callGeminiApi(config, title, url, content) {
+  const userPrompt = buildUserPrompt(title, url, content);
+  
+  const requestBody = {
+    contents: [{
+      parts: [{
+        text: `${SYSTEM_PROMPT}\n\n${userPrompt}`
+      }]
+    }],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 1000
+    }
+  };
+  
+  const endpoint = `${config.apiEndpoint}?key=${config.apiKey}`;
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT);
+  
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody),
+    signal: controller.signal
+  });
+  
+  clearTimeout(timeoutId);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    
+    if (response.status === 400) {
+      throw new Error('API_KEY_INVALID');
+    }
+    if (response.status === 403) {
+      throw new Error('API_KEY_INVALID');
+    }
+    if (response.status === 429) {
+      throw new Error('API_RATE_LIMIT');
+    }
+    
+    throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+    throw new Error('INVALID_API_RESPONSE');
+  }
+  
+  const text = data.candidates[0].content.parts[0].text;
+  const jsonStr = extractJsonFromResponse(text);
+  
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch (e) {
+    throw new Error('JSON_PARSE_ERROR');
+  }
+  
+  if (!validateAiResponse(parsed)) {
+    throw new Error('INVALID_RESPONSE_FORMAT');
+  }
+  
+  return {
+    primary_intent: parsed.primary_intent,
+    page_type: parsed.page_type,
+    topics: parsed.topics.slice(0, 10),
+    summary: parsed.summary,
+    key_takeaways: parsed.key_takeaways.slice(0, 5),
+    confidence: parsed.confidence
+  };
+}
+
+async function callOpenRouterApi(config, title, url, content) {
+  const userPrompt = buildUserPrompt(title, url, content);
+  
+  const requestBody = {
+    model: config.apiModel,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt }
+    ],
+    temperature: 0.3,
+    max_tokens: 1000
+  };
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT);
+  
+  const response = await fetch(config.apiEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`,
+      'HTTP-Referer': 'https://github.com/dsa-g/tab-vault',
+      'X-Title': 'IntentBook'
+    },
+    body: JSON.stringify(requestBody),
+    signal: controller.signal
+  });
+  
+  clearTimeout(timeoutId);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    
+    if (response.status === 401) {
+      throw new Error('API_KEY_INVALID');
+    }
+    if (response.status === 429) {
+      throw new Error('API_RATE_LIMIT');
+    }
+    
+    throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    throw new Error('INVALID_API_RESPONSE');
+  }
+  
+  const text = data.choices[0].message.content;
+  const jsonStr = extractJsonFromResponse(text);
+  
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch (e) {
+    throw new Error('JSON_PARSE_ERROR');
+  }
+  
+  if (!validateAiResponse(parsed)) {
+    throw new Error('INVALID_RESPONSE_FORMAT');
+  }
+  
+  return {
+    primary_intent: parsed.primary_intent,
+    page_type: parsed.page_type,
+    topics: parsed.topics.slice(0, 10),
+    summary: parsed.summary,
+    key_takeaways: parsed.key_takeaways.slice(0, 5),
+    confidence: parsed.confidence
+  };
+}
+
+async function callOpenAIApi(config, title, url, content) {
   const userPrompt = buildUserPrompt(title, url, content);
   
   const requestBody = {
@@ -116,69 +287,91 @@ async function analyzePage(title, url, content) {
     response_format: { type: 'json_object' }
   };
   
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT);
+  
+  const response = await fetch(config.apiEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`
+    },
+    body: JSON.stringify(requestBody),
+    signal: controller.signal
+  });
+  
+  clearTimeout(timeoutId);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    
+    if (response.status === 401) {
+      throw new Error('API_KEY_INVALID');
+    }
+    if (response.status === 429) {
+      throw new Error('API_RATE_LIMIT');
+    }
+    
+    throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    throw new Error('INVALID_API_RESPONSE');
+  }
+  
+  const text = data.choices[0].message.content;
+  const jsonStr = extractJsonFromResponse(text);
+  
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch (e) {
+    throw new Error('JSON_PARSE_ERROR');
+  }
+  
+  if (!validateAiResponse(parsed)) {
+    throw new Error('INVALID_RESPONSE_FORMAT');
+  }
+  
+  return {
+    primary_intent: parsed.primary_intent,
+    page_type: parsed.page_type,
+    topics: parsed.topics.slice(0, 10),
+    summary: parsed.summary,
+    key_takeaways: parsed.key_takeaways.slice(0, 5),
+    confidence: parsed.confidence
+  };
+}
+
+async function analyzePage(title, url, content) {
+  const config = await getApiConfig();
+  
+  if (!config.apiKey) {
+    throw new Error('API_KEY_MISSING');
+  }
+  
   let lastError = null;
   
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT);
+      let result;
       
-      const response = await fetch(config.apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.apiKey}`
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        
-        if (response.status === 401) {
-          throw new Error('API_KEY_INVALID');
-        }
-        if (response.status === 429) {
-          throw new Error('API_RATE_LIMIT');
-        }
-        if (response.status >= 500) {
-          throw new Error('API_SERVER_ERROR');
-        }
-        
-        throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+      switch (config.apiProvider) {
+        case 'gemini':
+          result = await callGeminiApi(config, title, url, content);
+          break;
+        case 'openrouter':
+          result = await callOpenRouterApi(config, title, url, content);
+          break;
+        case 'openai':
+        default:
+          result = await callOpenAIApi(config, title, url, content);
+          break;
       }
       
-      const data = await response.json();
-      
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-        throw new Error('INVALID_API_RESPONSE');
-      }
-      
-      const content = data.choices[0].message.content;
-      const jsonStr = extractJsonFromResponse(content);
-      
-      let parsed;
-      try {
-        parsed = JSON.parse(jsonStr);
-      } catch (e) {
-        throw new Error('JSON_PARSE_ERROR');
-      }
-      
-      if (!validateAiResponse(parsed)) {
-        throw new Error('INVALID_RESPONSE_FORMAT');
-      }
-      
-      return {
-        primary_intent: parsed.primary_intent,
-        page_type: parsed.page_type,
-        topics: parsed.topics.slice(0, 10),
-        summary: parsed.summary,
-        key_takeaways: parsed.key_takeaways.slice(0, 5),
-        confidence: parsed.confidence
-      };
+      return result;
       
     } catch (error) {
       lastError = error;
@@ -235,6 +428,5 @@ export {
   getApiConfig,
   setApiConfig,
   createFallbackMetadata,
-  DEFAULT_ENDPOINT,
-  DEFAULT_MODEL
+  PROVIDERS
 };

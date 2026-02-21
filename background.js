@@ -539,13 +539,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break;
           
         case 'getApiConfig':
-          const result = await chrome.storage.local.get(['apiKey', 'apiEndpoint', 'apiModel']);
+          const result = await chrome.storage.local.get(['apiKey', 'apiEndpoint', 'apiModel', 'apiProvider']);
+          const provider = result.apiProvider || 'gemini';
           sendResponse({
             success: true,
             config: {
               apiKey: result.apiKey ? '••••••••' : '',
-              apiEndpoint: result.apiEndpoint || 'https://api.openai.com/v1/chat/completions',
-              apiModel: result.apiModel || 'gpt-4o-mini',
+              apiEndpoint: result.apiEndpoint,
+              apiModel: result.apiModel || '',
+              apiProvider: provider,
               hasKey: !!result.apiKey
             }
           });
@@ -553,6 +555,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           
         case 'setApiConfig':
           const configToSave = {};
+          if (message.config.apiProvider) {
+            configToSave.apiProvider = message.config.apiProvider;
+          }
           if (message.config.apiKey && message.config.apiKey !== '••••••••') {
             configToSave.apiKey = message.config.apiKey;
           }
