@@ -540,7 +540,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           
         case 'getApiConfig':
           const result = await chrome.storage.local.get(['apiKey', 'apiEndpoint', 'apiModel', 'apiProvider']);
-          const provider = result.apiProvider || 'gemini';
+          const provider = result.apiProvider || 'chrome';
           sendResponse({
             success: true,
             config: {
@@ -551,6 +551,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               hasKey: !!result.apiKey
             }
           });
+          break;
+          
+        case 'checkChromeAI':
+          try {
+            if (!self.ai || !self.ai.languageModel) {
+              sendResponse({ available: false, reason: 'Chrome AI not found. Requires Chrome 127+' });
+              break;
+            }
+            const availability = await self.ai.languageModel.availability();
+            if (availability === 'available') {
+              sendResponse({ available: true });
+            } else if (availability === 'after-download') {
+              sendResponse({ available: false, reason: 'Model downloading... Check chrome://components' });
+            } else {
+              sendResponse({ available: false, reason: `Status: ${availability}` });
+            }
+          } catch (e) {
+            sendResponse({ available: false, reason: e.message });
+          }
           break;
           
         case 'setApiConfig':
@@ -666,7 +685,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             };
             
             const savedBookmark = await addBookmark(newBookmark);
-            sendResponse({ success: true, bookmark: savedBookmark });
+            sendResponse({ 
+              success: true, 
+              bookmark: savedBookmark,
+              aiSource: aiResult._source,
+              aiError: aiResult._errorMessage
+            });
           } catch (saveError) {
             console.error('Save page error:', saveError);
             sendResponse({ success: false, error: saveError.message });

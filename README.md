@@ -5,7 +5,8 @@ A local-first, privacy-respecting Chrome extension that uses AI to automatically
 ## Features
 
 - **One-Click Save**: Save any page with a single click
-- **Free AI Options**: Works with Google Gemini (free) or OpenRouter (free models)
+- **Chrome AI Built-in**: Works offline with Chrome's built-in Gemini Nano (no API key needed!)
+- **Free Cloud AI**: Google Gemini or OpenRouter (free models)
 - **AI-Powered Classification**: Automatically categorizes pages by intent, type, and topics
 - **Smart Summaries**: Generates concise summaries and key takeaways
 - **Local Storage**: All data stored locally in IndexedDB - no cloud, no tracking
@@ -17,19 +18,7 @@ A local-first, privacy-respecting Chrome extension that uses AI to automatically
 
 ## Installation
 
-### Prerequisites
-
-1. Chrome browser (version 88 or higher)
-2. A free API key from one of:
-   - **Google Gemini** (Recommended - Free): https://aistudio.google.com/app/apikey
-   - **OpenRouter** (Free models): https://openrouter.ai/keys
-   - **OpenAI** (Paid): https://platform.openai.com/api-keys
-
-### Step 1: Download/Clone
-
-Download or clone this repository to your local machine.
-
-### Step 2: Load the Extension
+### Step 1: Load the Extension
 
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable "Developer mode" (toggle in top right)
@@ -37,27 +26,35 @@ Download or clone this repository to your local machine.
 4. Select the `intentbook` folder
 5. The extension icon should appear in your toolbar
 
-### Step 3: Configure API Key
+### Step 2: Choose Your AI Provider
 
-1. Click the extension icon
-2. Click the settings gear icon (⚙️)
-3. Select your AI provider (Google Gemini is recommended and free)
-4. Enter your API key
-5. Click "Save Settings"
+**Option A: Chrome AI (Recommended - No API Key Needed!)**
+1. Requires Chrome 127+ 
+2. Go to `chrome://flags`
+3. Search for "Prompt API" and enable it
+4. Search for "Gemini Nano" and enable "Optimization Guide" 
+5. Restart Chrome
+6. Open extension settings - it will show if Chrome AI is available
 
-**Getting a Free API Key:**
-
-**Google Gemini (Recommended):**
+**Option B: Google Gemini API (Free)**
 1. Go to https://aistudio.google.com/app/apikey
 2. Sign in with your Google account
 3. Click "Create API Key"
-4. Copy the key and paste it in settings
+4. Copy the key and paste it in extension settings
 
-**OpenRouter:**
+**Option C: OpenRouter (Free Models)**
 1. Go to https://openrouter.ai/keys
 2. Create a free account
 3. Generate an API key
 4. Use free models like `google/gemini-2.0-flash-exp:free`
+
+### Step 3: Configure in Extension
+
+1. Click the extension icon
+2. Click the settings gear icon (⚙️)
+3. Select your AI provider
+4. If using cloud AI, enter your API key
+5. Click "Save Settings"
 
 ## Usage
 

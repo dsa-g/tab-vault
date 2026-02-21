@@ -279,20 +279,48 @@ const importData = async (file) => {
 };
 
 const PROVIDERS = {
+  chrome: {
+    name: 'Chrome AI',
+    keyUrl: '',
+    info: 'Built-in AI - No API key needed',
+    needsKey: false
+  },
   gemini: {
     name: 'Google Gemini',
     keyUrl: 'https://aistudio.google.com/app/apikey',
-    info: 'Free tier with generous limits'
+    info: 'Free tier with generous limits',
+    needsKey: true
   },
   openrouter: {
     name: 'OpenRouter',
     keyUrl: 'https://openrouter.ai/keys',
-    info: 'Access multiple free AI models'
+    info: 'Access multiple free AI models',
+    needsKey: true
   },
   openai: {
     name: 'OpenAI',
     keyUrl: 'https://platform.openai.com/api-keys',
-    info: 'Paid API with GPT models'
+    info: 'Paid API with GPT models',
+    needsKey: true
+  }
+};
+
+const checkChromeAI = async () => {
+  const statusEl = document.getElementById('chrome-ai-check');
+  
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'checkChromeAI' });
+    
+    if (response.available) {
+      statusEl.innerHTML = '<span class="status-ok">✓ Available</span>';
+      statusEl.className = 'status-check status-ok';
+    } else {
+      statusEl.innerHTML = `<span class="status-warn">✗ ${response.reason}</span>`;
+      statusEl.className = 'status-check status-warn';
+    }
+  } catch (e) {
+    statusEl.innerHTML = '<span class="status-warn">✗ Not available</span>';
+    statusEl.className = 'status-check status-warn';
   }
 };
 
@@ -300,18 +328,37 @@ const loadSettings = async () => {
   const response = await chrome.runtime.sendMessage({ action: 'getApiConfig' });
   
   if (response.success) {
-    const provider = response.config.apiProvider || 'gemini';
+    const provider = response.config.apiProvider || 'chrome';
     document.getElementById('api-provider').value = provider;
     document.getElementById('api-key').value = response.config.apiKey;
     document.getElementById('api-model').value = response.config.apiModel || '';
     updateProviderInfo(provider);
+    
+    if (provider === 'chrome') {
+      checkChromeAI();
+    }
   }
 };
 
 const updateProviderInfo = (provider) => {
   const info = PROVIDERS[provider];
+  const keyGroup = document.getElementById('api-key-group');
+  const modelGroup = document.getElementById('api-model-group');
+  const chromeStatus = document.getElementById('chrome-ai-status');
+  
   document.getElementById('provider-info').textContent = info.info;
-  document.getElementById('key-info').innerHTML = `Get a key: <a href="${info.keyUrl}" target="_blank">${info.name}</a>`;
+  
+  if (info.needsKey) {
+    keyGroup.style.display = 'block';
+    modelGroup.style.display = 'block';
+    chromeStatus.style.display = 'none';
+    document.getElementById('key-info').innerHTML = `Get a key: <a href="${info.keyUrl}" target="_blank">${info.name}</a>`;
+  } else {
+    keyGroup.style.display = 'none';
+    modelGroup.style.display = 'none';
+    chromeStatus.style.display = 'block';
+    checkChromeAI();
+  }
 };
 
 const saveSettings = async () => {
@@ -320,8 +367,10 @@ const saveSettings = async () => {
   const apiModel = document.getElementById('api-model').value.trim();
   const status = document.getElementById('settings-status');
   
-  if (!apiKey) {
-    status.textContent = 'API key is required';
+  const provider = PROVIDERS[apiProvider];
+  
+  if (provider.needsKey && !apiKey) {
+    status.textContent = 'API key is required for this provider';
     status.className = 'status-message error';
     return;
   }
@@ -330,7 +379,7 @@ const saveSettings = async () => {
     action: 'setApiConfig',
     config: {
       apiProvider,
-      apiKey,
+      apiKey: apiKey || undefined,
       apiModel: apiModel || undefined
     }
   });
@@ -413,7 +462,14 @@ const saveCurrentPage = async () => {
     });
     
     if (response.success) {
-      showToast(`Saved as: ${getCategoryLabel(response.bookmark.primary_intent)}`, 'success');
+      const source = response.aiSource || 'unknown';
+      const isError = response.aiError;
+      
+      if (isError) {
+        showToast(`Saved (fallback) - ${response.aiError}`, 'error');
+      } else {
+        showToast(`Saved via ${source}: ${getCategoryLabel(response.bookmark.primary_intent)}`, 'success');
+      }
       loadAllBookmarks();
     } else {
       showToast(response.error || 'Failed to save', 'error');

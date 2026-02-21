@@ -194,23 +194,30 @@
         <div class="setting-group">
           <label for="api-provider">AI Provider</label>
           <select id="api-provider">
-            <option value="gemini">Google Gemini (Free)</option>
+            <option value="chrome">Chrome AI (Built-in - Free)</option>
+            <option value="gemini">Google Gemini (Free API)</option>
             <option value="openrouter">OpenRouter (Free models)</option>
             <option value="openai">OpenAI (Paid)</option>
           </select>
-          <small id="provider-info">Free tier with generous limits</small>
+          <small id="provider-info">Built-in AI - No API key needed</small>
         </div>
         
-        <div class="setting-group">
+        <div class="setting-group" id="api-key-group" style="display: none;">
           <label for="api-key">API Key</label>
           <input type="password" id="api-key" placeholder="Enter your API key">
-          <small id="key-info">Get a free Gemini key: <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></small>
+          <small id="key-info"></small>
         </div>
         
-        <div class="setting-group">
+        <div class="setting-group" id="api-model-group" style="display: none;">
           <label for="api-model">Model (optional)</label>
           <input type="text" id="api-model" placeholder="Default for selected provider">
-          <small>Leave empty for recommended free model</small>
+          <small>Leave empty for recommended model</small>
+        </div>
+        
+        <div class="setting-group" id="chrome-ai-status" style="display: block;">
+          <label>Chrome AI Status</label>
+          <div id="chrome-ai-check" class="status-check">Checking...</div>
+          <small>Requires Chrome 127+ with "Prompt API for Gemini Nano" enabled in chrome://flags</small>
         </div>
         
         <button id="save-settings" class="primary-btn">Save Settings</button>

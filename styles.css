@@ -652,6 +652,23 @@ body {
   text-decoration: underline;
 }
 
+.status-check {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #f5f5f5;
+}
+
+.status-check.status-ok {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-check.status-warn {
+  background: #fff3e0;
+  color: #e65100;
+}
+
 .status-message {
   font-size: 12px;
   text-align: center;
