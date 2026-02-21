@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IntentBook</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1 class="logo">
+        <span class="logo-icon">📗</span>
+        IntentBook
+      </h1>
+      <div class="header-actions">
+        <button id="save-btn" class="save-btn" title="Save Current Page">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          Save
+        </button>
+        <button id="settings-btn" class="icon-btn" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="all">All</button>
+      <button class="tab" data-tab="categories">Categories</button>
+      <button class="tab" data-tab="search">Search</button>
+      <button class="tab" data-tab="export">Export</button>
+    </nav>
+
+    <main class="content">
+      <div id="tab-all" class="tab-content active">
+        <div class="list-header">
+          <span class="count" id="all-count">0 saved</span>
+          <button id="sort-btn" class="text-btn">Sort ↓</button>
+        </div>
+        <div id="all-list" class="bookmark-list"></div>
+        <div id="all-empty" class="empty-state">
+          <div class="empty-icon">📖</div>
+          <p>No pages saved yet</p>
+          <span>Click "Save" above to save the current page</span>
+        </div>
+      </div>
+
+      <div id="tab-categories" class="tab-content">
+        <div id="categories-list" class="categories-grid"></div>
+        <div id="categories-empty" class="empty-state">
+          <div class="empty-icon">📂</div>
+          <p>No categories yet</p>
+          <span>Save some pages to see them organized by intent</span>
+        </div>
+      </div>
+
+      <div id="tab-search" class="tab-content">
+        <div class="search-box">
+          <input type="text" id="search-input" placeholder="Search bookmarks..." autocomplete="off">
+          <button id="clear-search" class="clear-btn" style="display: none;">×</button>
+        </div>
+        <div id="search-results" class="bookmark-list"></div>
+        <div id="search-empty" class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <p>Search your bookmarks</p>
+          <span>Enter keywords to find saved pages</span>
+        </div>
+      </div>
+
+      <div id="tab-export" class="tab-content">
+        <div class="export-section">
+          <h3>Export Data</h3>
+          <p>Download all your bookmarks as a JSON file.</p>
+          <button id="export-btn" class="primary-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Export JSON
+          </button>
+        </div>
+        
+        <div class="export-section">
+          <h3>Import Data</h3>
+          <p>Import bookmarks from a JSON file.</p>
+          <label class="file-label">
+            <input type="file" id="import-input" accept=".json" hidden>
+            <span class="file-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Import JSON
+            </span>
+          </label>
+          <div id="import-options" class="import-options" style="display: none;">
+            <label class="radio-label">
+              <input type="radio" name="merge-strategy" value="skip" checked>
+              Skip duplicates
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="merge-strategy" value="replace">
+              Replace duplicates
+            </label>
+          </div>
+        </div>
+        
+        <div class="export-section danger">
+          <h3>Clear All Data</h3>
+          <p>Permanently delete all saved bookmarks.</p>
+          <button id="clear-btn" class="danger-btn">Clear All</button>
+        </div>
+      </div>
+    </main>
+
+    <div id="detail-panel" class="detail-panel">
+      <div class="detail-header">
+        <button id="close-detail" class="icon-btn">←</button>
+        <div class="detail-actions">
+          <button id="open-url" class="icon-btn" title="Open">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </button>
+          <button id="delete-bookmark" class="icon-btn danger" title="Delete">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="detail-content">
+        <h2 id="detail-title" class="detail-title"></h2>
+        <a id="detail-url" class="detail-url" href="#" target="_blank"></a>
+        
+        <div class="detail-meta">
+          <div class="meta-item">
+            <span class="meta-label">Intent</span>
+            <span id="detail-intent" class="meta-value category-badge"></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Type</span>
+            <span id="detail-type" class="meta-value"></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Confidence</span>
+            <span id="detail-confidence" class="meta-value"></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Saved</span>
+            <span id="detail-date" class="meta-value"></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Visits</span>
+            <span id="detail-visits" class="meta-value"></span>
+          </div>
+        </div>
+        
+        <div class="detail-section">
+          <h4>Summary</h4>
+          <p id="detail-summary"></p>
+        </div>
+        
+        <div class="detail-section" id="topics-section">
+          <h4>Topics</h4>
+          <div id="detail-topics" class="tag-list"></div>
+        </div>
+        
+        <div class="detail-section" id="takeaways-section">
+          <h4>Key Takeaways</h4>
+          <ul id="detail-takeaways" class="takeaway-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="settings-panel" class="settings-panel">
+      <div class="detail-header">
+        <button id="close-settings" class="icon-btn">←</button>
+        <h3>Settings</h3>
+      </div>
+      <div class="settings-content">
+        <div class="setting-group">
+          <label for="api-key">API Key</label>
+          <input type="password" id="api-key" placeholder="Enter your API key">
+          <small>Your API key is stored locally and never sent to our servers.</small>
+        </div>
+        
+        <div class="setting-group">
+          <label for="api-endpoint">API Endpoint</label>
+          <input type="url" id="api-endpoint" placeholder="https://api.openai.com/v1/chat/completions">
+          <small>Default: OpenAI API endpoint. Change for custom/compatible APIs.</small>
+        </div>
+        
+        <div class="setting-group">
+          <label for="api-model">Model</label>
+          <input type="text" id="api-model" placeholder="gpt-4o-mini">
+          <small>The model to use for classification.</small>
+        </div>
+        
+        <button id="save-settings" class="primary-btn">Save Settings</button>
+        <p id="settings-status" class="status-message"></p>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
