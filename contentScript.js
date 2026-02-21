@@ -1,15 +1,15 @@
-(function() {
+(function () {
   'use strict';
-  
+
   if (window.__intentbookInjected) return;
   window.__intentbookInjected = true;
-  
+
   const BADGE_ID = 'intentbook-badge';
   const BADGE_STYLES_ID = 'intentbook-badge-styles';
-  
+
   function injectBadgeStyles() {
     if (document.getElementById(BADGE_STYLES_ID)) return;
-    
+
     const style = document.createElement('style');
     style.id = BADGE_STYLES_ID;
     style.textContent = `
@@ -108,26 +108,11 @@
     `;
     document.head.appendChild(style);
   }
-  
-  function getCategoryIcon(category) {
-    const icons = {
-      learning_guide: '📚',
-      research_reference: '🔬',
-      buying_decision: '🛒',
-      product_tool: '🔧',
-      news_update: '📰',
-      opinion_analysis: '💭',
-      tutorial_howto: '📖',
-      career_job: '💼',
-      inspiration: '✨',
-      entertainment: '🎬',
-      problem_solution: '💡',
-      documentation: '📄',
-      other: '📌'
-    };
-    return icons[category] || icons.other;
+
+  function getCategoryIcon(bookmark) {
+    return bookmark.emoji || '';
   }
-  
+
   function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -136,19 +121,19 @@
       year: 'numeric'
     });
   }
-  
+
   function showBadge(bookmark) {
     if (document.getElementById(BADGE_ID)) return;
-    
+
     injectBadgeStyles();
-    
+
     const badge = document.createElement('div');
     badge.id = BADGE_ID;
-    
-    const icon = getCategoryIcon(bookmark.primary_intent);
-    const category = bookmark.primary_intent.replace(/_/g, ' ');
+
+    const icon = getCategoryIcon(bookmark);
+    const category = bookmark.primary_intent || 'Unclassified';
     const summary = bookmark.summary || 'No summary available';
-    
+
     badge.innerHTML = `
       <button class="intentbook-badge-close" title="Close">&times;</button>
       <div class="intentbook-badge-header">
@@ -162,9 +147,9 @@
         <span>Visits: ${bookmark.visit_count || 1}</span>
       </div>
     `;
-    
+
     document.body.appendChild(badge);
-    
+
     badge.addEventListener('click', (e) => {
       if (e.target.classList.contains('intentbook-badge-close')) {
         badge.remove();
@@ -172,48 +157,48 @@
       }
       badge.classList.toggle('expanded');
     });
-    
+
     setTimeout(() => {
       if (document.getElementById(BADGE_ID)) {
         badge.classList.add('expanded');
       }
     }, 1000);
-    
+
     setTimeout(() => {
       if (document.getElementById(BADGE_ID)) {
         badge.classList.remove('expanded');
       }
     }, 5000);
   }
-  
+
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
-  
+
   async function checkForSavedPage() {
     const url = window.location.href;
-    
-    if (url.startsWith('chrome://') || 
-        url.startsWith('chrome-extension://') || 
-        url.startsWith('about:') ||
-        url.startsWith('file://')) {
+
+    if (url.startsWith('chrome://') ||
+      url.startsWith('chrome-extension://') ||
+      url.startsWith('about:') ||
+      url.startsWith('file://')) {
       return;
     }
-    
+
     try {
       const response = await chrome.runtime.sendMessage({
         action: 'checkUrl',
         url: url
       });
-      
+
       if (response && response.exists && response.bookmark) {
         chrome.runtime.sendMessage({
           action: 'incrementVisit',
           url: url
-        }).catch(() => {});
-        
+        }).catch(() => { });
+
         setTimeout(() => {
           showBadge(response.bookmark);
         }, 1000);
@@ -222,7 +207,7 @@
       console.warn('IntentBook: Could not check saved status:', error);
     }
   }
-  
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'pageLoaded') {
       checkForSavedPage();
@@ -230,11 +215,11 @@
     sendResponse({ received: true });
     return true;
   });
-  
+
   if (document.readyState === 'complete') {
     checkForSavedPage();
   } else {
     window.addEventListener('load', checkForSavedPage);
   }
-  
+
 })();

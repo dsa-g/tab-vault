@@ -103,7 +103,7 @@ async function incrementVisitCount(url) {
     const store = transaction.objectStore(STORE_NAME);
     const index = store.index('url');
     const request = index.get(url);
-    
+
     request.onsuccess = () => {
       const bookmark = request.result;
       if (!bookmark) {
@@ -136,7 +136,7 @@ async function updateBookmark(id, updates) {
     const transaction = database.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const getRequest = store.get(id);
-    
+
     getRequest.onsuccess = () => {
       const existing = getRequest.result;
       if (!existing) {
@@ -186,7 +186,7 @@ async function getBookmarksByCategory(category) {
 async function searchBookmarks(query) {
   const bookmarks = await getAllBookmarks();
   const lowerQuery = query.toLowerCase();
-  return bookmarks.filter(bookmark => 
+  return bookmarks.filter(bookmark =>
     bookmark.title?.toLowerCase().includes(lowerQuery) ||
     bookmark.summary?.toLowerCase().includes(lowerQuery) ||
     bookmark.url?.toLowerCase().includes(lowerQuery) ||
@@ -208,20 +208,20 @@ async function importData(data, mergeStrategy = 'skip') {
   if (!data || !data.bookmarks || !Array.isArray(data.bookmarks)) {
     throw new Error('Invalid import data format');
   }
-  
+
   let imported = 0;
   let skipped = 0;
   let errors = 0;
-  
+
   for (const bookmark of data.bookmarks) {
     if (!bookmark.url) {
       errors++;
       continue;
     }
-    
+
     try {
       const existing = await getBookmarkByUrl(bookmark.url);
-      
+
       if (existing) {
         if (mergeStrategy === 'skip') {
           skipped++;
@@ -232,7 +232,7 @@ async function importData(data, mergeStrategy = 'skip') {
           continue;
         }
       }
-      
+
       const { id, ...bookmarkWithoutId } = bookmark;
       await addBookmark(bookmarkWithoutId);
       imported++;
@@ -244,7 +244,7 @@ async function importData(data, mergeStrategy = 'skip') {
       }
     }
   }
-  
+
   return { imported, skipped, errors };
 }
 
@@ -270,22 +270,22 @@ function extractReadableContentFromHtml(html, baseUrl) {
     '.related-posts', '.recommended',
     '.popup', '.modal', '.overlay'
   ];
-  
+
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
-  
+
   removeSelectors.forEach(selector => {
     try {
       doc.querySelectorAll(selector).forEach(el => el.remove());
-    } catch (e) {}
+    } catch (e) { }
   });
-  
+
   const articleSelectors = [
     'article', '[role="main"]', 'main',
     '.post-content', '.article-content', '.entry-content',
     '.content', '#content', '.post', '.article'
   ];
-  
+
   let contentElement = null;
   for (const selector of articleSelectors) {
     const el = doc.querySelector(selector);
@@ -294,39 +294,39 @@ function extractReadableContentFromHtml(html, baseUrl) {
       break;
     }
   }
-  
+
   if (!contentElement) {
     contentElement = doc.body;
   }
-  
+
   const paragraphs = contentElement.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
   let text = '';
-  
+
   paragraphs.forEach(p => {
     const content = p.textContent.trim();
     if (content.length > 20) {
       text += content + '\n\n';
     }
   });
-  
+
   if (text.length < 200) {
     text = contentElement.textContent || '';
   }
-  
+
   return text.replace(/\s+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function truncateText(text, maxTokens = 7000) {
   const avgCharsPerToken = 4;
   const maxChars = maxTokens * avgCharsPerToken;
-  
+
   if (text.length <= maxChars) return text;
-  
+
   const truncated = text.substring(0, maxChars);
   const lastSpace = truncated.lastIndexOf(' ');
   const lastNewline = truncated.lastIndexOf('\n');
   const cutoff = Math.max(lastSpace, lastNewline);
-  
+
   if (cutoff > maxChars * 0.8) {
     return truncated.substring(0, cutoff) + '...';
   }
@@ -337,7 +337,7 @@ chrome.action.onClicked.addListener(async (tab) => {
   const tabId = tab.id;
   const url = tab.url;
   const title = tab.title;
-  
+
   if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://') || url.startsWith('about:')) {
     chrome.notifications.create({
       type: 'basic',
@@ -347,7 +347,7 @@ chrome.action.onClicked.addListener(async (tab) => {
     });
     return;
   }
-  
+
   try {
     const existing = await getBookmarkByUrl(url);
     if (existing) {
@@ -359,15 +359,15 @@ chrome.action.onClicked.addListener(async (tab) => {
       });
       return;
     }
-  } catch (e) {}
-  
-  chrome.action.setIcon({ tabId, path: 'icons/icon48-loading.png' }).catch(() => {});
+  } catch (e) { }
+
+  chrome.action.setIcon({ tabId, path: 'icons/icon48-loading.png' }).catch(() => { });
   chrome.action.setBadgeText({ tabId, text: '...' });
   chrome.action.setBadgeBackgroundColor({ tabId, color: '#666666' });
-  
+
   try {
     let content = '';
-    
+
     try {
       const results = await chrome.scripting.executeScript({
         target: { tabId },
@@ -382,21 +382,21 @@ chrome.action.onClicked.addListener(async (tab) => {
             '.related-posts', '.recommended',
             '.popup', '.modal', '.overlay'
           ];
-          
+
           const clone = document.cloneNode(true);
-          
+
           removeSelectors.forEach(selector => {
             try {
               clone.querySelectorAll(selector).forEach(el => el.remove());
-            } catch (e) {}
+            } catch (e) { }
           });
-          
+
           const articleSelectors = [
             'article', '[role="main"]', 'main',
             '.post-content', '.article-content', '.entry-content',
             '.content', '#content', '.post', '.article'
           ];
-          
+
           let contentElement = null;
           for (const selector of articleSelectors) {
             const el = clone.querySelector(selector);
@@ -405,90 +405,95 @@ chrome.action.onClicked.addListener(async (tab) => {
               break;
             }
           }
-          
+
           if (!contentElement) {
             contentElement = clone.body;
           }
-          
+
           const paragraphs = contentElement.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
           let text = '';
-          
+
           paragraphs.forEach(p => {
             const c = p.textContent.trim();
             if (c.length > 20) {
               text += c + '\n\n';
             }
           });
-          
+
           if (text.length < 200) {
             text = contentElement.textContent || '';
           }
-          
+
           return text.replace(/\s+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
         }
       });
-      
+
       if (results && results[0] && results[0].result) {
         content = results[0].result;
       }
     } catch (scriptError) {
       console.warn('Could not extract content via script:', scriptError);
     }
-    
+
     content = truncateText(content, 7000);
-    
+
     if (!content || content.length < 50) {
       content = title;
     }
-    
+
     const aiResult = await analyzePageWithFallback(title, url, content);
-    
+
     const bookmark = {
       url,
       title,
       ...aiResult
     };
-    
+
+    // Remove transient properties before saving
+    delete bookmark._source;
+    delete bookmark._error;
+    delete bookmark._errorMessage;
+
     await addBookmark(bookmark);
-    
+
     chrome.action.setBadgeText({ tabId, text: '✓' });
     chrome.action.setBadgeBackgroundColor({ tabId, color: '#4CAF50' });
-    
+
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon48.png',
       title: 'IntentBook',
-      message: `Saved as: ${aiResult.primary_intent.replace(/_/g, ' ')}`
+      message: `Saved as: ${aiResult.emoji || ''} ${aiResult.primary_intent}`
     });
-    
+
     setTimeout(() => {
       chrome.action.setBadgeText({ tabId, text: '' });
-      chrome.action.setIcon({ tabId, path: 'icons/icon48.png' }).catch(() => {});
+      chrome.action.setIcon({ tabId, path: 'icons/icon48.png' }).catch(() => { });
     }, 2000);
-    
+
   } catch (error) {
     console.error('Error saving page:', error);
-    
+
     chrome.action.setBadgeText({ tabId, text: '✗' });
     chrome.action.setBadgeBackgroundColor({ tabId, color: '#f44336' });
-    
+
     let message = 'Failed to save page.';
     if (error.message === 'API_KEY_MISSING') {
       message = 'Please set your API key in extension settings.';
     } else if (error.message === 'API_KEY_INVALID') {
       message = 'Invalid API key. Please check your settings.';
     }
-    
+
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon48.png',
       title: 'IntentBook Error',
       message
     });
-    
+
     setTimeout(() => {
       chrome.action.setBadgeText({ tabId, text: '' });
-      chrome.action.setIcon({ tabId, path: 'icons/icon48.png' }).catch(() => {});
+      chrome.action.setIcon({ tabId, path: 'icons/icon48.png' }).catch(() => { });
     }, 3000);
   }
 });
@@ -501,57 +506,57 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const existing = await getBookmarkByUrl(message.url);
           sendResponse({ exists: !!existing, bookmark: existing });
           break;
-          
+
         case 'incrementVisit':
           const updated = await incrementVisitCount(message.url);
           sendResponse({ success: !!updated, bookmark: updated });
           break;
-          
+
         case 'getAllBookmarks':
           const bookmarks = await getAllBookmarks();
           sendResponse({ success: true, bookmarks });
           break;
-          
+
         case 'getCategories':
           const categories = await getCategories();
           sendResponse({ success: true, categories });
           break;
-          
+
         case 'getByCategory':
           const categoryBookmarks = await getBookmarksByCategory(message.category);
           sendResponse({ success: true, bookmarks: categoryBookmarks });
           break;
-          
+
         case 'searchBookmarks':
           const searchResults = await searchBookmarks(message.query);
           sendResponse({ success: true, bookmarks: searchResults });
           break;
-          
+
         case 'deleteBookmark':
           await deleteBookmark(message.id);
           sendResponse({ success: true });
           break;
-          
+
         case 'updateBookmark':
           const updatedBookmark = await updateBookmark(message.id, message.updates);
           sendResponse({ success: true, bookmark: updatedBookmark });
           break;
-          
+
         case 'exportData':
           const exportResult = await exportData();
           sendResponse({ success: true, data: exportResult });
           break;
-          
+
         case 'importData':
           const importResult = await importData(message.data, message.mergeStrategy);
           sendResponse({ success: true, result: importResult });
           break;
-          
+
         case 'clearAll':
           await clearAllBookmarks();
           sendResponse({ success: true });
           break;
-          
+
         case 'getApiConfig':
           const result = await chrome.storage.local.get(['apiKey', 'apiEndpoint', 'apiModel', 'apiProvider']);
           const provider = result.apiProvider || 'chrome';
@@ -566,7 +571,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
           });
           break;
-          
+
         case 'checkChromeAI':
           try {
             if (!self.ai || !self.ai.languageModel) {
@@ -585,7 +590,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ available: false, reason: e.message });
           }
           break;
-          
+
         case 'setApiConfig':
           const configToSave = {};
           if (message.config.apiProvider) {
@@ -603,13 +608,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           await chrome.storage.local.set(configToSave);
           sendResponse({ success: true });
           break;
-          
+
         case 'savePage':
           try {
             const saveUrl = message.url;
             const saveTitle = message.title;
             const tabId = message.tabId;
-            
+
             const existingBookmark = await getBookmarkByUrl(saveUrl);
             if (existingBookmark) {
               await addLog({
@@ -621,7 +626,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               sendResponse({ success: false, error: 'Already saved', bookmark: existingBookmark });
               return;
             }
-            
+
             let content = '';
             try {
               const results = await chrome.scripting.executeScript({
@@ -637,21 +642,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     '.related-posts', '.recommended',
                     '.popup', '.modal', '.overlay'
                   ];
-                  
+
                   const clone = document.cloneNode(true);
-                  
+
                   removeSelectors.forEach(selector => {
                     try {
                       clone.querySelectorAll(selector).forEach(el => el.remove());
-                    } catch (e) {}
+                    } catch (e) { }
                   });
-                  
+
                   const articleSelectors = [
                     'article', '[role="main"]', 'main',
                     '.post-content', '.article-content', '.entry-content',
                     '.content', '#content', '.post', '.article'
                   ];
-                  
+
                   let contentElement = null;
                   for (const selector of articleSelectors) {
                     const el = clone.querySelector(selector);
@@ -660,29 +665,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                       break;
                     }
                   }
-                  
+
                   if (!contentElement) {
                     contentElement = clone.body;
                   }
-                  
+
                   const paragraphs = contentElement.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
                   let text = '';
-                  
+
                   paragraphs.forEach(p => {
                     const c = p.textContent.trim();
                     if (c.length > 20) {
                       text += c + '\n\n';
                     }
                   });
-                  
+
                   if (text.length < 200) {
                     text = contentElement.textContent || '';
                   }
-                  
+
                   return text.replace(/\s+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
                 }
               });
-              
+
               if (results && results[0] && results[0].result) {
                 content = results[0].result;
               }
@@ -695,36 +700,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 error: scriptError.message
               });
             }
-            
+
             content = truncateText(content, 7000);
-            
+
             if (!content || content.length < 50) {
               content = saveTitle;
             }
-            
+
             console.log('[IntentBook] Starting AI analysis for:', saveUrl);
-            
+
             const aiResult = await analyzePageWithFallback(saveTitle, saveUrl, content);
-            
+
             console.log('[IntentBook] AI result:', {
               source: aiResult._source,
               intent: aiResult.primary_intent,
               error: aiResult._errorMessage
             });
-            
+
             const newBookmark = {
               url: saveUrl,
               title: saveTitle,
-              primary_intent: aiResult.primary_intent,
-              page_type: aiResult.page_type,
-              topics: aiResult.topics,
-              summary: aiResult.summary,
-              key_takeaways: aiResult.key_takeaways,
-              confidence: aiResult.confidence
+              ...aiResult
             };
-            
+
+            // Remove transient properties before saving
+            delete newBookmark._source;
+            delete newBookmark._error;
+            delete newBookmark._errorMessage;
+
             const savedBookmark = await addBookmark(newBookmark);
-            
+
             await addLog({
               action: 'SAVE_PAGE',
               type: aiResult._errorMessage ? 'warning' : 'success',
@@ -740,9 +745,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 confidence: aiResult.confidence
               }
             });
-            
-            sendResponse({ 
-              success: true, 
+
+            sendResponse({
+              success: true,
               bookmark: savedBookmark,
               aiSource: aiResult._source,
               aiError: aiResult._errorMessage,
@@ -759,7 +764,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ success: false, error: saveError.message });
           }
           break;
-          
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -768,13 +773,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: false, error: error.message });
     }
   };
-  
+
   handleMessage();
   return true;
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url) {
-    chrome.tabs.sendMessage(tabId, { action: 'pageLoaded', url: tab.url }).catch(() => {});
+    chrome.tabs.sendMessage(tabId, { action: 'pageLoaded', url: tab.url }).catch(() => { });
   }
 });
